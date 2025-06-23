@@ -56,29 +56,171 @@
         // ======================================================================
         // STEP 1: Apna Firebase config yahan paste karo
         const firebaseConfig = {
-  apiKey: "AIzaSyCvX-6mAbZfJZ8ogI5xIU05EMRaXO1BxPw",
-  authDomain: "nfgflax-ffcfa.firebaseapp.com",
-  databaseURL: "https://nfgflax-ffcfa-default-rtdb.firebaseio.com",
-  projectId: "nfgflax-ffcfa",
-  storageBucket: "nfgflax-ffcfa.firebasestorage.app",
-  messagingSenderId: "205692317813",
-  appId: "1:205692317813:web:3f4d065819e84748ab483c",
-  measurementId: "G-QYJ37K6DZK"
-};
+            apiKey: "AIzaSyCvX-6mAbZfJZ8ogI5xIU05EMRaXO1BxPw",
+            authDomain: "nfgflax-ffcfa.firebaseapp.com",
+            databaseURL: "https://nfgflax-ffcfa-default-rtdb.firebaseio.com",
+            projectId: "nfgflax-ffcfa",
+            storageBucket: "nfgflax-ffcfa.firebasestorage.app",
+            messagingSenderId: "205692317813",
+            appId: "1:205692317813:web:3f4d065819e84748ab483c",
+            measurementId: "G-QYJ37K6DZK"
+        };
         // ======================================================================
         
-        // Dekho, yahan 'initializeApp(config)' use ho raha hai, na ki 'firebase.initializeApp()'.
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
 
-        // Baaki ka JavaScript code same rahega
-        const mainContent=document.getElementById("movie-grid"),loader=document.getElementById("loader"),searchInput=document.getElementById("search-input"),detailsOverlay=document.getElementById("details-overlay");let allMovies=[],categories=[];async function fetchAndDisplayContent(){const e=collection(db,"movies"),t=query(e,orderBy("createdAt","desc")),o=await getDocs(t);if(allMovies=o.docs.map(e=>({id:e.id,...e.data()})),loader.classList.add("hidden"),0===allMovies.length)return mainContent.innerHTML='<p style="text-align:center;">Koi movie available nahi hai.</p>',void(document.getElementById("hero-section").style.display="none");displayFeaturedMovie(allMovies[0]);const n=new Set(allMovies.map(e=>e.category));categories=[...n],displayMoviesByCategory(allMovies,categories)}
-        function displayFeaturedMovie(e){if(!e)return;document.getElementById("hero-section").style.backgroundImage=`url(${e.posterUrl})`,document.getElementById("hero-title").textContent=e.title,document.getElementById("hero-category").textContent=e.category;const t=document.getElementById("hero-watch-btn");t.onclick=()=>{openPlayer(e.watchLink,e.title),incrementStat("views",e.id)}}
-        function displayMoviesByCategory(e,t){mainContent.innerHTML="",t.forEach(t=>{const o=e.filter(e=>e.category===t);o.length>0&&((n=document.createElement("div")).className="category-row",n.innerHTML=`\n                        <h2 class="category-title">${t}</h2>\n                        <div class="movies-scroll">\n                            ${o.map(e=>`\n                                <div class="movie-poster" data-id="${e.id}">\n                                    <img src="${e.posterUrl}" alt="${e.title}" loading="lazy" onerror="this.src='https://via.placeholder.com/180x270.png?text=No+Image'">\n                                </div>`).join("")}\n                        </div>`,mainContent.appendChild(n))});var n;document.querySelectorAll(".movie-poster").forEach(e=>{e.addEventListener("click",()=>showMovieDetails(e.dataset.id))})}
-        function showMovieDetails(e){const t=allMovies.find(t=>t.id===e);if(!t)return;document.getElementById("popup-poster").src=t.posterUrl,document.getElementById("popup-title").textContent=t.title,document.getElementById("popup-category").textContent=t.category;const o=document.getElementById("popup-watch-btn"),n=document.getElementById("popup-download-btn");o.onclick=()=>{openPlayer(t.watchLink,t.title),incrementStat("views",t.id),detailsOverlay.classList.remove("active")},n.onclick=()=>{window.open(t.downloadLink,"_blank"),incrementStat("downloads",t.id)},detailsOverlay.classList.add("active")}
-        document.getElementById("close-popup-btn").addEventListener("click",()=>detailsOverlay.classList.remove("active")),detailsOverlay.addEventListener("click",e=>{e.target===detailsOverlay&&detailsOverlay.classList.remove("active")});const playerContainer=document.getElementById("movie-player-container");function openPlayer(e,t){playerContainer.classList.remove("hidden"),document.getElementById("player-movie-title").textContent=t,document.getElementById("player-content").innerHTML=`<iframe src="${e}" frameborder="0" allow="autoplay; fullscreen" allowfullscreen></iframe>`}
-        document.getElementById("player-close-btn").onclick=()=>{playerContainer.classList.add("hidden"),document.getElementById("player-content").innerHTML=""};async function incrementStat(e,t){const o=(new Date).toISOString().split("T")[0];await setDoc(doc(db,"stats","totals"),{[e]:increment(1)},{merge:!0}),await setDoc(doc(db,"stats",`daily_${o}`),{[e]:increment(1)},{merge:!0})}
-        searchInput.addEventListener("keyup",e=>{const t=e.target.value.toLowerCase().trim();if(document.getElementById("hero-section").style.display=t?"none":"flex",t.length>1){const e=allMovies.filter(e=>e.title.toLowerCase().includes(t)),o=[...new Set(e.map(e=>e.category))];displayMoviesByCategory(e,o)}else 0===t.length&&displayMoviesByCategory(allMovies,categories)}),document.addEventListener("DOMContentLoaded",fetchAndDisplayContent);
+        const mainContent = document.getElementById("movie-grid");
+        const loader = document.getElementById("loader");
+        const searchInput = document.getElementById("search-input");
+        const detailsOverlay = document.getElementById("details-overlay");
+        const playerContainer = document.getElementById("movie-player-container");
+        
+        let allMovies = [];
+        let categories = [];
+
+        async function fetchAndDisplayContent() {
+            const moviesCollection = collection(db, "movies");
+            const q = query(moviesCollection, orderBy("createdAt", "desc"));
+            const querySnapshot = await getDocs(q);
+            
+            allMovies = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+            
+            loader.classList.add("hidden");
+
+            if (allMovies.length === 0) {
+                mainContent.innerHTML = '<p style="text-align:center;">Koi movie available nahi hai.</p>';
+                document.getElementById("hero-section").style.display = "none";
+                return;
+            }
+
+            displayFeaturedMovie(allMovies[0]);
+            const uniqueCategories = new Set(allMovies.map(movie => movie.category));
+            categories = [...uniqueCategories];
+            displayMoviesByCategory(allMovies, categories);
+        }
+
+        function displayFeaturedMovie(movie) {
+            if (!movie) return;
+            document.getElementById("hero-section").style.backgroundImage = `url(${movie.posterUrl})`;
+            document.getElementById("hero-title").textContent = movie.title;
+            document.getElementById("hero-category").textContent = movie.category;
+            const watchBtn = document.getElementById("hero-watch-btn");
+            watchBtn.onclick = () => {
+                openPlayer(movie.watchLink, movie.title);
+                incrementStat("views", movie.id);
+            };
+        }
+
+        function displayMoviesByCategory(movies, categoriesToDisplay) {
+            mainContent.innerHTML = "";
+            categoriesToDisplay.forEach(category => {
+                const moviesInCategory = movies.filter(movie => movie.category === category);
+                if (moviesInCategory.length > 0) {
+                    const categoryRow = document.createElement("div");
+                    categoryRow.className = "category-row";
+                    categoryRow.innerHTML = `
+                        <h2 class="category-title">${category}</h2>
+                        <div class="movies-scroll">
+                            ${moviesInCategory.map(movie => `
+                                <div class="movie-poster" data-id="${movie.id}">
+                                    <img src="${movie.posterUrl}" alt="${movie.title}" loading="lazy" onerror="this.src='https://via.placeholder.com/180x270.png?text=No+Image'">
+                                </div>`).join("")}
+                        </div>`;
+                    mainContent.appendChild(categoryRow);
+                }
+            });
+            
+            document.querySelectorAll(".movie-poster").forEach(poster => {
+                poster.addEventListener("click", () => showMovieDetails(poster.dataset.id));
+            });
+        }
+
+        function showMovieDetails(movieId) {
+            const movie = allMovies.find(m => m.id === movieId);
+            if (!movie) return;
+
+            document.getElementById("popup-poster").src = movie.posterUrl;
+            document.getElementById("popup-title").textContent = movie.title;
+            document.getElementById("popup-category").textContent = movie.category;
+
+            const watchBtn = document.getElementById("popup-watch-btn");
+            const downloadBtn = document.getElementById("popup-download-btn");
+
+            watchBtn.onclick = () => {
+                openPlayer(movie.watchLink, movie.title);
+                incrementStat("views", movie.id);
+                detailsOverlay.classList.remove("active");
+            };
+
+            downloadBtn.onclick = () => {
+                window.open(movie.downloadLink, "_blank");
+                incrementStat("downloads", movie.id);
+            };
+
+            detailsOverlay.classList.add("active");
+        }
+
+        document.getElementById("close-popup-btn").addEventListener("click", () => detailsOverlay.classList.remove("active"));
+        detailsOverlay.addEventListener("click", (e) => {
+            if (e.target === detailsOverlay) {
+                detailsOverlay.classList.remove("active");
+            }
+        });
+
+        // ======================================================================
+        // === UPDATED FUNCTION YAHA HAI ===
+        // Is function ko Google Drive links ko handle karne ke liye aasan bana diya gaya hai
+        // ======================================================================
+        function openPlayer(watchLink, title) {
+            let embedUrl = watchLink; // Default link wahi rakhte hain
+
+            // Check karein ki link Google Drive ka hai ya nahi
+            if (watchLink && watchLink.includes("drive.google.com/file")) {
+                // Link se File ID nikalte hain
+                const parts = watchLink.split('/d/');
+                if (parts.length > 1) {
+                    const idPart = parts[1].split('/')[0];
+                    // Sahi 'preview' (embed) URL banate hain
+                    embedUrl = `https://drive.google.com/file/d/${idPart}/preview`;
+                }
+            }
+            
+            // Ab player ko dikhayein aur naya (ya purana) embedUrl iframe mein set karein
+            playerContainer.classList.remove("hidden");
+            document.getElementById("player-movie-title").textContent = title;
+            const playerContent = document.getElementById("player-content");
+            playerContent.innerHTML = `<iframe src="${embedUrl}" frameborder="0" allow="autoplay; fullscreen" allowfullscreen></iframe>`;
+        }
+
+        document.getElementById("player-close-btn").onclick = () => {
+            playerContainer.classList.add("hidden");
+            // Iframe ko hatana zaroori hai taaki video background me na chale
+            document.getElementById("player-content").innerHTML = ""; 
+        };
+
+        async function incrementStat(statType, movieId) {
+            const today = new Date().toISOString().split("T")[0]; // format: YYYY-MM-DD
+            // Total stats
+            await setDoc(doc(db, "stats", "totals"), { [statType]: increment(1) }, { merge: true });
+            // Daily stats
+            await setDoc(doc(db, "stats", `daily_${today}`), { [statType]: increment(1) }, { merge: true });
+        }
+
+        searchInput.addEventListener("keyup", (e) => {
+            const searchTerm = e.target.value.toLowerCase().trim();
+            document.getElementById("hero-section").style.display = searchTerm ? "none" : "flex";
+
+            if (searchTerm.length > 1) {
+                const filteredMovies = allMovies.filter(movie => movie.title.toLowerCase().includes(searchTerm));
+                const filteredCategories = [...new Set(filteredMovies.map(movie => movie.category))];
+                displayMoviesByCategory(filteredMovies, filteredCategories);
+            } else if (searchTerm.length === 0) {
+                displayMoviesByCategory(allMovies, categories);
+            }
+        });
+
+        document.addEventListener("DOMContentLoaded", fetchAndDisplayContent);
     </script>
 </body>
 </html>
